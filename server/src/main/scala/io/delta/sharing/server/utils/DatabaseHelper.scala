@@ -1,3 +1,5 @@
+// scalastyle:off
+
 /*
  * Copyright (2021) The Delta Lake Project Authors.
  *
