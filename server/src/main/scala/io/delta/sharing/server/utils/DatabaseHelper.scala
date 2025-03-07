@@ -26,11 +26,7 @@ object DatabaseHelper {
   private val logger = LoggerFactory.getLogger(this.getClass)
 
   // Azure SQL Server Connection String
-  private val url =
-  "jdbc:sqlserver://ceer-ods.database.windows.net:1433;" +
-  "database=data-marketplace-poc;user=dbadmin;password=Ceer@123456;" +
-  "encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;" +
-  "loginTimeout=30;"
+  private val url = <JDBC-URL>
 
   // Function to insert request info into the database
   def logRequest(requestType: String, requestData: String): Unit = {
