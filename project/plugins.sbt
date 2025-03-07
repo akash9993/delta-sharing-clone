@@ -34,5 +34,6 @@ addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.6")
 addSbtPlugin("com.github.sbt" % "sbt-native-packager" % "1.9.16")
 
 addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.1.2")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.6")
 
 libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.12"
