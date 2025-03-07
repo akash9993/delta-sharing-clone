@@ -112,6 +112,8 @@ lazy val server = (project in file("server")) enablePlugins(JavaAppPackaging) se
     "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.3",
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.6.7.1",
     "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.6.7",
+    "com.microsoft.sqlserver" % "mssql-jdbc" % "12.2.0.jre11",
+
     "org.json4s" %% "json4s-jackson" % "3.5.3" excludeAll(
       ExclusionRule("com.fasterxml.jackson.core"),
       ExclusionRule("com.fasterxml.jackson.module")
