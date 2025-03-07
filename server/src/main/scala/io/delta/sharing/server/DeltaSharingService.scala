@@ -46,7 +46,6 @@ import io.delta.sharing.server.common.JsonUtils
 import io.delta.sharing.server.config.ServerConfig
 import io.delta.sharing.server.model.{QueryStatus, SingleAction}
 import io.delta.sharing.server.protocol._
-
 import io.delta.sharing.server.utils.DatabaseHelper
 
 object ErrorCode {
