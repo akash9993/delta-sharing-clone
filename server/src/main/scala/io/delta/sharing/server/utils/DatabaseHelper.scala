@@ -1,6 +1,7 @@
 package io.delta.sharing.server.utils
 
 import java.sql.{Connection, DriverManager, PreparedStatement}
+
 import org.slf4j.LoggerFactory
 
 object DatabaseHelper {
@@ -27,10 +28,10 @@ object DatabaseHelper {
       preparedStatement.setString(2, requestData)
       preparedStatement.executeUpdate()
 
-      logger.info(s"✅ Successfully logged request: $requestType")
+      logger.info(s"Successfully logged request: $requestType")
     } catch {
       case e: Exception =>
-        logger.error("❌ Error logging request to database", e)
+        logger.error("Error logging request to database", e)
     } finally {
       if (preparedStatement != null) preparedStatement.close()
       if (connection != null) connection.close()
