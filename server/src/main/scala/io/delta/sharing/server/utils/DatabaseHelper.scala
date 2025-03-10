@@ -16,43 +16,43 @@
  * limitations under the License.
  */
 
-package io.delta.sharing.server.utils
+// package io.delta.sharing.server.utils
 
-import java.sql.{Connection, DriverManager, PreparedStatement}
+// import java.sql.{Connection, DriverManager, PreparedStatement}
 
-import org.slf4j.LoggerFactory
+// import org.slf4j.LoggerFactory
 
 object DatabaseHelper {
-  private val logger = LoggerFactory.getLogger(this.getClass)
+  // private val logger = LoggerFactory.getLogger(this.getClass)
 
-  // Azure SQL Server Connection String
-  private val url = <JDBC-URL>
+  // // Azure SQL Server Connection String
+  // private val url = "jdbc"
 
-  // Function to insert request info into the database
-  def logRequest(requestType: String, requestData: String): Unit = {
-    var connection: Connection = null
-    var preparedStatement: PreparedStatement = null
+  // // Function to insert request info into the database
+  // def logRequest(requestType: String, requestData: String): Unit = {
+  //   var connection: Connection = null
+  //   var preparedStatement: PreparedStatement = null
 
-    try {
-      // Establish connection
-      connection = DriverManager.getConnection(url)
+  //   try {
+  //     // Establish connection
+  //     connection = DriverManager.getConnection(url)
 
-      // Define SQL Insert Query
-      val query = "INSERT INTO RequestLogs (RequestType, RequestData, Timestamp) VALUES (?, ?, GETDATE())"
+  //     // Define SQL Insert Query
+  //     val query = "INSERT INTO RequestLogs (RequestType, RequestData, Timestamp) VALUES (?, ?, GETDATE())"
 
-      // Prepare and execute statement
-      preparedStatement = connection.prepareStatement(query)
-      preparedStatement.setString(1, requestType)
-      preparedStatement.setString(2, requestData)
-      preparedStatement.executeUpdate()
+  //     // Prepare and execute statement
+  //     preparedStatement = connection.prepareStatement(query)
+  //     preparedStatement.setString(1, requestType)
+  //     preparedStatement.setString(2, requestData)
+  //     preparedStatement.executeUpdate()
 
-      logger.info(s"Successfully logged request: $requestType")
-    } catch {
-      case e: Exception =>
-        logger.error("Error logging request to database", e)
-    } finally {
-      if (preparedStatement != null) preparedStatement.close()
-      if (connection != null) connection.close()
-    }
-  }
+  //     logger.info(s"Successfully logged request: $requestType")
+  //   } catch {
+  //     case e: Exception =>
+  //       logger.error("Error logging request to database", e)
+  //   } finally {
+  //     if (preparedStatement != null) preparedStatement.close()
+  //     if (connection != null) connection.close()
+  //   }
+  // }
 }

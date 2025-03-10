@@ -46,7 +46,7 @@ import io.delta.sharing.server.common.JsonUtils
 import io.delta.sharing.server.config.ServerConfig
 import io.delta.sharing.server.model.{QueryStatus, SingleAction}
 import io.delta.sharing.server.protocol._
-import io.delta.sharing.server.utils.DatabaseHelper
+// import io.delta.sharing.server.utils.DatabaseHelper
 
 object ErrorCode {
   val UNSUPPORTED_OPERATION = "UNSUPPORTED_OPERATION"
@@ -215,7 +215,7 @@ class DeltaSharingService(serverConfig: ServerConfig) {
       @Param("maxResults") @Default("500") maxResults: Int,
       @Param("pageToken") @Nullable pageToken: String): ListSharesResponse = processRequest {
         // Call database helper to log request
-  DatabaseHelper.logRequest("listShares", s"maxResults=$maxResults, pageToken=$pageToken")
+  // DatabaseHelper.logRequest("listShares", s"maxResults=$maxResults, pageToken=$pageToken")
     val (shares, nextPageToken) = sharedTableManager.listShares(Option(pageToken), Some(maxResults))
     ListSharesResponse(shares, nextPageToken)
   }
