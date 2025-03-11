@@ -46,6 +46,7 @@ import io.delta.sharing.server.common.JsonUtils
 import io.delta.sharing.server.config.ServerConfig
 import io.delta.sharing.server.model.{QueryStatus, SingleAction}
 import io.delta.sharing.server.protocol._
+import io.delta.sharing.server.utils.DatabaseHelper
 // import io.delta.sharing.server.utils.DatabaseHelper
 
 object ErrorCode {
@@ -315,12 +316,19 @@ class DeltaSharingService(serverConfig: ServerConfig) {
     import scala.collection.JavaConverters._
     // Extract Bearer Token
     val authHeader = req.headers().get("Authorization")
-    val bearerToken = Option(authHeader).filter(_.startsWith("Bearer ")).map(_.substring(7))
+    val bearerToken = Option(authHeader)
+      .filter(_.startsWith("Bearer "))
+      .map(_.substring(7))
+      .getOrElse(throw new NoSuchElementException("Unauthorized: No Bearer Token found in request"))
 
     // Log Bearer Token
-    bearerToken match {
-      case Some(token) => logger.info(s"Received Bearer Token: $token")
-      case None => logger.warn("No Bearer Token found in request")
+    logger.info(s"Received Bearer Token: $bearerToken")
+    val result: Boolean = DatabaseHelper.checkTokenPresentInDb(bearerToken);
+    if (!result) {
+      logger.error("Unauthorized access attempt with invalid token")
+      throw new UnauthorizedException("User is unauthorized");
+    } else {
+      logger.info("User validated")
     }
     if (version != null && timestamp != null) {
       throw new DeltaSharingIllegalArgumentException(ErrorStrings.multipleParametersSetErrorMsg(
