@@ -16,26 +16,25 @@
  * limitations under the License.
  */
 
- package io.delta.sharing.server.utils
+package io.delta.sharing.server.utils
 
- import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
- import io.delta.sharing.server.AccessDeniedException
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import io.delta.sharing.server.AccessDeniedException
+import org.slf4j.LoggerFactory
 
- import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, Timestamp}
- import org.slf4j.LoggerFactory
-
- import java.time.{LocalDate, LocalDateTime}
- import java.time.format.DateTimeFormatter
+import java.sql._
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 object DatabaseHelper {
-   private val logger = LoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
-   // Azure SQL Server Connection String
-   private val url =
-     "jdbc:sqlserver://ceer-ods.database.windows.net:1433;" +
-       "database=data-marketplace-poc;user=dbadmin;password=Ceer@123456;" +
-       "encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;" +
-       "loginTimeout=30;"
+  // Azure SQL Server Connection String
+  private val url =
+    "jdbc:sqlserver://ceer-ods.database.windows.net:1433;" +
+      "database=data-marketplace-poc;user=dbadmin;password=Ceer@123456;" +
+      "encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;" +
+      "loginTimeout=30;"
 
   def checkTokenPresentInDb(token: String): Boolean = {
     var connection: Connection = null
@@ -51,7 +50,7 @@ object DatabaseHelper {
       // Prepare and execute statement
       preparedStatement = connection.prepareStatement(query)
       preparedStatement.setString(1, token)
-      resultSet= preparedStatement.executeQuery();
+      resultSet = preparedStatement.executeQuery();
 
       return resultSet.next()
     } catch {
@@ -114,17 +113,15 @@ object DatabaseHelper {
       } else {
         throw new AccessDeniedException("Data not found")
       }
-    } catch {
-      case e: Exception =>
-        logger.error("Error validating user subscription", e)
-        throw new Exception(e.getMessage)
-    } finally {
+    }
+    finally {
       // Close resources in reverse order
       if (resultSet != null) resultSet.close()
       if (preparedStatement != null) preparedStatement.close()
       if (connection != null) connection.close()
     }
   }
+
   def updateUserQueryAuditTable(userId: String, productCatalogId: String, productCatalogName: String): Unit = {
     var connection: Connection = null
     var preparedStatement: PreparedStatement = null
@@ -145,19 +142,37 @@ object DatabaseHelper {
       if (resultSet.next()) {
         // Extract values from result set
         val queriesUsed = resultSet.getInt("queries_used")
+        val updatedQueriesUsed = queriesUsed + 1;
+
+        // Prepare UPDATE statement
+        val updateQuery = "UPDATE user_subscriptions SET queries_used = ? WHERE user_id = ? AND product_catalog_id = ?"
+        preparedStatement = connection.prepareStatement(updateQuery)
+        preparedStatement.setInt(1, updatedQueriesUsed) // Incremented value
+        preparedStatement.setString(2, userId)
+        preparedStatement.setString(3, productCatalogId)
+
+        // Execute UPDATE query
+        val rowsUpdated = preparedStatement.executeUpdate()
+
+        if (rowsUpdated == 0) {
+          throw new Exception("Failed to update queries_used: No rows affected")
+        }
         val query1 = "INSERT INTO user_query_audit (user_id, catalog_id, catalog_name, query_count, time_created) VALUES (?, ?, ?, ?, ?)"
         preparedStatement = connection.prepareStatement(query1)
         preparedStatement.setString(1, userId)
         preparedStatement.setString(2, productCatalogId)
         preparedStatement.setString(3, productCatalogName)
-        preparedStatement.setInt(4, queriesUsed+1)
+        preparedStatement.setInt(4, updatedQueriesUsed)
         preparedStatement.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()))
         preparedStatement.executeUpdate();
       }
     } catch {
+      case e: SQLException =>
+        logger.error("Database error in updateUserQueryAuditTable", e)
+        throw new Exception("Database error: " + e.getMessage)
       case e: Exception =>
-        logger.error("Error checking token in database", e)
-        throw new Exception(e.getMessage)
+        logger.error("Error in updateUserQueryAuditTable", e)
+        throw new Exception("Unexpected error: " + e.getMessage)
     } finally {
       // Close resources in reverse order
       if (resultSet != null) resultSet.close()
