@@ -211,6 +211,7 @@ class DeltaSharingService(serverConfig: ServerConfig) {
    */
   private def processRequest[T](func: => T): T = {
     try func catch {
+      case e: UnauthorizedException => throw e
       case e: DeltaSharingUnsupportedOperationException => throw e
       case e: DeltaSharingIllegalArgumentException => throw e
       case e: DeltaSharingNoSuchElementException => throw e
