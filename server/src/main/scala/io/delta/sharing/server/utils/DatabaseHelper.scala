@@ -19,8 +19,9 @@
  package io.delta.sharing.server.utils
 
  import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+ import io.delta.sharing.server.AccessDeniedException
 
- import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet}
+ import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, Timestamp}
  import org.slf4j.LoggerFactory
 
  import java.time.{LocalDate, LocalDateTime}
@@ -35,34 +36,6 @@ object DatabaseHelper {
        "database=data-marketplace-poc;user=dbadmin;password=Ceer@123456;" +
        "encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;" +
        "loginTimeout=30;"
-
-   // Function to insert request info into the database
-   def logRequest(requestType: String, requestData: String): Unit = {
-     var connection: Connection = null
-     var preparedStatement: PreparedStatement = null
-
-     try {
-       // Establish connection
-       connection = DriverManager.getConnection(url)
-
-       // Define SQL Insert Query
-       val query = "INSERT INTO RequestLogs (RequestType, RequestData, Timestamp) VALUES (?, ?, GETDATE())"
-
-       // Prepare and execute statement
-       preparedStatement = connection.prepareStatement(query)
-       preparedStatement.setString(1, requestType)
-       preparedStatement.setString(2, requestData)
-       preparedStatement.executeUpdate()
-
-       logger.info(s"Successfully logged request: $requestType")
-     } catch {
-       case e: Exception =>
-         logger.error("Error logging request to database", e)
-     } finally {
-       if (preparedStatement != null) preparedStatement.close()
-       if (connection != null) connection.close()
-     }
-   }
 
   def checkTokenPresentInDb(token: String): Boolean = {
     var connection: Connection = null
@@ -124,7 +97,7 @@ object DatabaseHelper {
 
         // Check if subscription has expired
         if (expirationDateTime.isBefore(currentDateTime)) {
-          throw new RuntimeException("Your subscription plan has expired")
+          throw new AccessDeniedException("Your subscription plan has expired")
         }
 
         // Parse JSON to extract queryLimit
@@ -134,17 +107,17 @@ object DatabaseHelper {
 
         // Check if query limit is reached
         if (queriesUsed >= queryLimit) {
-          throw new RuntimeException("Your query limit has been reached")
+          throw new AccessDeniedException("Your query limit has been reached")
         }
 
         true // Valid subscription and within query limit
       } else {
-        throw new RuntimeException("Data not found")
+        throw new AccessDeniedException("Data not found")
       }
     } catch {
       case e: Exception =>
         logger.error("Error validating user subscription", e)
-        throw new RuntimeException("Data not found")
+        throw new Exception(e.getMessage)
     } finally {
       // Close resources in reverse order
       if (resultSet != null) resultSet.close()
@@ -152,5 +125,44 @@ object DatabaseHelper {
       if (connection != null) connection.close()
     }
   }
+  def updateUserQueryAuditTable(userId: String, productCatalogId: String, productCatalogName: String): Unit = {
+    var connection: Connection = null
+    var preparedStatement: PreparedStatement = null
+    var resultSet: ResultSet = null
+    try {
+      // Establish connection
+      connection = DriverManager.getConnection(url)
 
+      // Define SQL Insert Query
+      val query = "SELECT queries_used FROM user_subscriptions WHERE user_id = ? AND product_catalog_id = ?"
+
+      // Prepare and execute statement
+      preparedStatement = connection.prepareStatement(query)
+      preparedStatement.setString(1, userId)
+      preparedStatement.setString(2, productCatalogId)
+      resultSet = preparedStatement.executeQuery()
+
+      if (resultSet.next()) {
+        // Extract values from result set
+        val queriesUsed = resultSet.getInt("queries_used")
+        val query1 = "INSERT INTO user_query_audit (user_id, catalog_id, catalog_name, query_count, time_created) VALUES (?, ?, ?, ?, ?)"
+        preparedStatement = connection.prepareStatement(query1)
+        preparedStatement.setString(1, userId)
+        preparedStatement.setString(2, productCatalogId)
+        preparedStatement.setString(3, productCatalogName)
+        preparedStatement.setInt(4, queriesUsed+1)
+        preparedStatement.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()))
+        preparedStatement.executeUpdate();
+      }
+    } catch {
+      case e: Exception =>
+        logger.error("Error checking token in database", e)
+        throw new Exception(e.getMessage)
+    } finally {
+      // Close resources in reverse order
+      if (resultSet != null) resultSet.close()
+      if (preparedStatement != null) preparedStatement.close()
+      if (connection != null) connection.close()
+    }
+  }
 }

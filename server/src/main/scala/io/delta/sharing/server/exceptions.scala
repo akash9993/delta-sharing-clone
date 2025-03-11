@@ -49,6 +49,9 @@ class DeltaSharingUnsupportedOperationException(message: String)
 class UnauthorizedException(message: String)
   extends Exception(message)
 
+class AccessDeniedException(message: String)
+  extends Exception(message)
+
 /**
  * A special exception that wraps an unhandled exception when processing a request.
  * `DeltaInternalException` should never be exposed to users as an unhandled exception may contain

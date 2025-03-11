@@ -404,6 +404,7 @@ class DeltaSharingService(serverConfig: ServerConfig) {
       responseFormatSet = responseFormatSet,
       clientReaderFeaturesSet = clientReaderFeaturesSet,
       includeEndStreamAction = false)
+    DatabaseHelper.updateUserQueryAuditTable(userId,productCatalogId, productCatalogName);
     streamingOutput(Some(queryResult.version), queryResult.responseFormat, queryResult.actions)
     // maintain audit table
   }
