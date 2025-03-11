@@ -313,6 +313,15 @@ class DeltaSharingService(serverConfig: ServerConfig) {
       @Param("version") @Nullable version: java.lang.Long,
       @Param("timestamp") @Nullable timestamp: String): HttpResponse = processRequest {
     import scala.collection.JavaConverters._
+    // Extract Bearer Token
+    val authHeader = req.headers().get("Authorization")
+    val bearerToken = Option(authHeader).filter(_.startsWith("Bearer ")).map(_.substring(7))
+
+    // Log Bearer Token
+    bearerToken match {
+      case Some(token) => logger.info(s"Received Bearer Token: $token")
+      case None => logger.warn("No Bearer Token found in request")
+    }
     if (version != null && timestamp != null) {
       throw new DeltaSharingIllegalArgumentException(ErrorStrings.multipleParametersSetErrorMsg(
         Seq("version", "timestamp"))
@@ -349,6 +358,7 @@ class DeltaSharingService(serverConfig: ServerConfig) {
       clientReaderFeaturesSet = clientReaderFeaturesSet,
       includeEndStreamAction = false)
     streamingOutput(Some(queryResult.version), queryResult.responseFormat, queryResult.actions)
+    // maintain audit table
   }
 
 
