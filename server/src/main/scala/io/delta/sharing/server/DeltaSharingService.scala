@@ -132,6 +132,18 @@ class DeltaSharingServiceExceptionHandler extends ExceptionHandlerFunction {
             Map(
               "errorCode" -> ErrorCode.RESOURCE_DOES_NOT_EXIST,
               "message" -> "table files missing")))
+      case _: UnauthorizedException =>
+        HttpResponse.of(
+          HttpStatus.UNAUTHORIZED, // 401 Unauthorized
+          MediaType.JSON_UTF_8,
+          JsonUtils.toJson(
+            Map(
+              "errorCode" -> "UNAUTHORIZED",
+              "message" -> cause.getMessage
+            )
+          )
+        )
+
       case _: AccessDeniedException =>
         HttpResponse.of(
           HttpStatus.BAD_REQUEST,
@@ -319,7 +331,7 @@ class DeltaSharingService(serverConfig: ServerConfig) {
     val bearerToken = Option(authHeader)
       .filter(_.startsWith("Bearer "))
       .map(_.substring(7))
-      .getOrElse(throw new NoSuchElementException("Unauthorized: No Bearer Token found in request"))
+      .getOrElse(throw new UnauthorizedException("Unauthorized: No Bearer Token found in request"))
 
     // Log Bearer Token
     logger.info(s"Received Bearer Token: $bearerToken")
