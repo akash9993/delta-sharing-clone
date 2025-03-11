@@ -49,7 +49,7 @@ class DeltaSharingUnsupportedOperationException(message: String)
 class UnauthorizedException(message: String)
   extends Exception(message)
 
-class AccessDeniedException(message: String)
+class SubscriptionExpiredException(message: String)
   extends Exception(message)
 
 /**

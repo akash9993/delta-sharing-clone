@@ -19,7 +19,7 @@
 package io.delta.sharing.server.utils
 
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import io.delta.sharing.server.AccessDeniedException
+import io.delta.sharing.server.SubscriptionExpiredException
 import org.slf4j.LoggerFactory
 
 import java.sql._
@@ -96,7 +96,7 @@ object DatabaseHelper {
 
         // Check if subscription has expired
         if (expirationDateTime.isBefore(currentDateTime)) {
-          throw new AccessDeniedException("Your subscription plan has expired")
+          throw new SubscriptionExpiredException("Your subscription plan has expired at: "+expirationDateTime)
         }
 
         // Parse JSON to extract queryLimit
@@ -106,12 +106,12 @@ object DatabaseHelper {
 
         // Check if query limit is reached
         if (queriesUsed >= queryLimit) {
-          throw new AccessDeniedException("Your query limit has been reached")
+          throw new SubscriptionExpiredException("Your query limit has been reached to "+queryLimit)
         }
 
         true // Valid subscription and within query limit
       } else {
-        throw new AccessDeniedException("Data not found")
+        throw new Exception("Data not found")
       }
     }
     finally {

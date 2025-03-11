@@ -84,7 +84,17 @@ class DeltaSharingServiceExceptionHandler extends ExceptionHandlerFunction {
             )
           )
         )
-
+      case _: SubscriptionExpiredException =>
+        HttpResponse.of(
+          HttpStatus.FORBIDDEN, // 401 Unauthorized
+          MediaType.JSON_UTF_8,
+          JsonUtils.toJson(
+            Map(
+              "errorCode" -> "FORBIDDEN",
+              "message" -> cause.getMessage
+            )
+          )
+        )
       case _: DeltaSharingNoSuchElementException =>
         if (req.method().equals(HttpMethod.HEAD)) {
           HttpResponse.of(
@@ -215,6 +225,7 @@ class DeltaSharingService(serverConfig: ServerConfig) {
   private def processRequest[T](func: => T): T = {
     try func catch {
       case e: UnauthorizedException => throw e
+      case e: SubscriptionExpiredException => throw e
       case e: DeltaSharingUnsupportedOperationException => throw e
       case e: DeltaSharingIllegalArgumentException => throw e
       case e: DeltaSharingNoSuchElementException => throw e
