@@ -70,6 +70,18 @@ class DeltaSharingServiceExceptionHandler extends ExceptionHandlerFunction {
       cause: Throwable): HttpResponse = {
     cause match {
       // Handle exceptions caused by incorrect requests
+      case _: UnauthorizedException =>
+        HttpResponse.of(
+          HttpStatus.UNAUTHORIZED, // 401 Unauthorized
+          MediaType.JSON_UTF_8,
+          JsonUtils.toJson(
+            Map(
+              "errorCode" -> "UNAUTHORIZED",
+              "message" -> cause.getMessage
+            )
+          )
+        )
+
       case _: DeltaSharingNoSuchElementException =>
         if (req.method().equals(HttpMethod.HEAD)) {
           HttpResponse.of(
@@ -132,17 +144,6 @@ class DeltaSharingServiceExceptionHandler extends ExceptionHandlerFunction {
             Map(
               "errorCode" -> ErrorCode.RESOURCE_DOES_NOT_EXIST,
               "message" -> "table files missing")))
-      case _: UnauthorizedException =>
-        HttpResponse.of(
-          HttpStatus.UNAUTHORIZED, // 401 Unauthorized
-          MediaType.JSON_UTF_8,
-          JsonUtils.toJson(
-            Map(
-              "errorCode" -> "UNAUTHORIZED",
-              "message" -> cause.getMessage
-            )
-          )
-        )
 
       case _: AccessDeniedException =>
         HttpResponse.of(
