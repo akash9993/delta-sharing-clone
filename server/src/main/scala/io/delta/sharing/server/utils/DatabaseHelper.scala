@@ -88,26 +88,31 @@ object DatabaseHelper {
         val subscriptionPricingDetail = resultSet.getString("subscription_pricing_detail")
         val queriesUsed = resultSet.getInt("queries_used")
         logger.info("detail: {}", subscriptionPricingDetail);
-        // Parse expiration_date as LocalDateTime
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS") // Adjust if necessary
-        val expirationDateTime = LocalDateTime.parse(expirationDateTimeStr, formatter)
-        logger.info("expirationDateTime: {}", expirationDateTime);
-        val currentDateTime = LocalDateTime.now()
 
-        // Check if subscription has expired
-        if (expirationDateTime.isBefore(currentDateTime)) {
-          throw new SubscriptionExpiredException("Your subscription plan has expired at: "+expirationDateTime)
-        }
-
-        // Parse JSON to extract queryLimit
         val objectMapper = new ObjectMapper();
         val jsonNode: JsonNode = objectMapper.readTree(subscriptionPricingDetail)
-        val queryLimit = jsonNode.get("queryLimit").asInt()
+        val subscriptionType = jsonNode.get("queryLimit").asText();
+        // Parse expiration_date as LocalDateTime
+        if("subscription".equalsIgnoreCase(subscriptionType)){
+          val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS") // Adjust if necessary
+          val expirationDateTime = LocalDateTime.parse(expirationDateTimeStr, formatter)
+          logger.info("expirationDateTime: {}", expirationDateTime);
+          val currentDateTime = LocalDateTime.now()
 
-        // Check if query limit is reached
-        if (queriesUsed >= queryLimit) {
-          throw new SubscriptionExpiredException("Your query limit has been reached to "+queryLimit)
+          // Check if subscription has expired
+          if (expirationDateTime.isBefore(currentDateTime)) {
+            throw new SubscriptionExpiredException("Your subscription plan has expired at: "+expirationDateTime)
+          }
+
+          // Parse JSON to extract queryLimit
+          val queryLimit = jsonNode.get("queryLimit").asInt()
+
+          // Check if query limit is reached
+          if (queriesUsed >= queryLimit) {
+            throw new SubscriptionExpiredException("Your query limit has been reached to "+queryLimit)
+          }
         }
+
 
         true // Valid subscription and within query limit
       } else {
