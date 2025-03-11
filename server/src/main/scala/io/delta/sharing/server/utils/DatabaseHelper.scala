@@ -117,7 +117,7 @@ object DatabaseHelper {
         val queriesUsed = resultSet.getInt("queries_used")
         logger.info("detail: {}", subscriptionPricingDetail);
         // Parse expiration_date as LocalDateTime
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss") // Adjust if necessary
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS") // Adjust if necessary
         val expirationDateTime = LocalDateTime.parse(expirationDateTimeStr, formatter)
         logger.info("expirationDateTime: {}", expirationDateTime);
         val currentDateTime = LocalDateTime.now()
@@ -144,7 +144,7 @@ object DatabaseHelper {
     } catch {
       case e: Exception =>
         logger.error("Error validating user subscription", e)
-        false // Return false if there's an error
+        throw new RuntimeException("Data not found")
     } finally {
       // Close resources in reverse order
       if (resultSet != null) resultSet.close()
