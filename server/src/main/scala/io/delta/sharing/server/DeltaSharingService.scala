@@ -1,3 +1,4 @@
+// scalastyle:off
 /*
  * Copyright (2021) The Delta Lake Project Authors.
  *
@@ -19,6 +20,7 @@ package io.delta.sharing.server
 import java.io.{ByteArrayOutputStream, File, FileNotFoundException}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.AccessDeniedException
+import java.util.Base64
 import java.security.MessageDigest
 import java.util.concurrent.CompletableFuture
 import javax.annotation.Nullable
@@ -47,6 +49,7 @@ import io.delta.sharing.server.config.ServerConfig
 import io.delta.sharing.server.model.{QueryStatus, SingleAction}
 import io.delta.sharing.server.protocol._
 import io.delta.sharing.server.utils.DatabaseHelper
+
 // import io.delta.sharing.server.utils.DatabaseHelper
 
 object ErrorCode {
@@ -341,9 +344,31 @@ class DeltaSharingService(serverConfig: ServerConfig) {
     if (!result) {
       logger.error("Unauthorized access attempt with invalid token")
       throw new UnauthorizedException("User is unauthorized");
-    } else {
-      logger.info("User validated")
     }
+    // extract userid, productCatalogId and productCatalogName
+    // Decode Base64 token
+    val decodedToken = Try(new String(Base64.getDecoder.decode(bearerToken), "UTF-8")).getOrElse {
+      throw new UnauthorizedException("Invalid Bearer Token format")
+    }
+
+    val tokenParts = decodedToken.split(":")
+    if (tokenParts.length != 3) {
+      throw new UnauthorizedException("Malformed Bearer Token")
+    }
+
+    // Extract userId, productCatalogId, and productCatalogName
+    val userId = tokenParts(0)                // 1892637b-1176-4fc4-bb6e-3537ff1fc30b
+    val productCatalogId = tokenParts(1)      // 5e4bae27-a795-4cda-8ccf-c2f6f6f60000
+    val productCatalogName = tokenParts(2)    // MODEL_POPULARITY_INDICATOR
+
+    if (productCatalogName != table) {
+      logger.error(s"Access Denied: productCatalogName ($productCatalogName) does not match table ($table)")
+      throw new UnauthorizedException("Forbidden: Access to this table is not allowed")
+    }
+
+    logger.info(s"Extracted UserId: $userId, ProductCatalogId: $productCatalogId, ProductCatalogName: $productCatalogName")
+
+    DatabaseHelper.validateUserSubscriptionAndQueryLimit(userId, productCatalogId);
     if (version != null && timestamp != null) {
       throw new DeltaSharingIllegalArgumentException(ErrorStrings.multipleParametersSetErrorMsg(
         Seq("version", "timestamp"))

@@ -18,8 +18,13 @@
 
  package io.delta.sharing.server.utils
 
+ import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+
  import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet}
  import org.slf4j.LoggerFactory
+
+ import java.time.{LocalDate, LocalDateTime}
+ import java.time.format.DateTimeFormatter
 
 object DatabaseHelper {
    private val logger = LoggerFactory.getLogger(this.getClass)
@@ -88,5 +93,64 @@ object DatabaseHelper {
     }
   }
 
+  def validateUserSubscriptionAndQueryLimit(userId: String, productCatalogId: String): Boolean = {
+    var connection: Connection = null
+    var preparedStatement: PreparedStatement = null
+    var resultSet: ResultSet = null
+    try {
+      // Establish connection
+      connection = DriverManager.getConnection(url)
+
+      // Define SQL Query
+      val query = "SELECT expiration_date, subscription_pricing_detail, queries_used FROM user_subscriptions WHERE user_id = ? AND product_catalog_id = ?"
+
+      // Prepare and execute statement
+      preparedStatement = connection.prepareStatement(query)
+      preparedStatement.setString(1, userId)
+      preparedStatement.setString(2, productCatalogId)
+      resultSet = preparedStatement.executeQuery()
+
+      if (resultSet.next()) {
+        // Extract values from result set
+        val expirationDateTimeStr = resultSet.getString("expiration_date")
+        val subscriptionPricingDetail = resultSet.getString("subscription_pricing_detail")
+        val queriesUsed = resultSet.getInt("queries_used")
+        logger.info("detail: {}", subscriptionPricingDetail);
+        // Parse expiration_date as LocalDateTime
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss") // Adjust if necessary
+        val expirationDateTime = LocalDateTime.parse(expirationDateTimeStr, formatter)
+        logger.info("expirationDateTime: {}", expirationDateTime);
+        val currentDateTime = LocalDateTime.now()
+
+        // Check if subscription has expired
+        if (expirationDateTime.isBefore(currentDateTime)) {
+          throw new RuntimeException("Your subscription plan has expired")
+        }
+
+        // Parse JSON to extract queryLimit
+        val objectMapper = new ObjectMapper();
+        val jsonNode: JsonNode = objectMapper.readTree(subscriptionPricingDetail)
+        val queryLimit = jsonNode.get("queryLimit").asInt()
+
+        // Check if query limit is reached
+        if (queriesUsed >= queryLimit) {
+          throw new RuntimeException("Your query limit has been reached")
+        }
+
+        true // Valid subscription and within query limit
+      } else {
+        throw new RuntimeException("Data not found")
+      }
+    } catch {
+      case e: Exception =>
+        logger.error("Error validating user subscription", e)
+        false // Return false if there's an error
+    } finally {
+      // Close resources in reverse order
+      if (resultSet != null) resultSet.close()
+      if (preparedStatement != null) preparedStatement.close()
+      if (connection != null) connection.close()
+    }
+  }
 
 }
