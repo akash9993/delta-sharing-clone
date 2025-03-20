@@ -411,7 +411,7 @@ class DeltaSharingService(serverConfig: ServerConfig) {
 
   if (groupName.nonEmpty) {
     // Use actual token in the query
-    val catalogQuery = s"SELECT DISTINCT catalogId FROM user_group_subscriptions WHERE CatalogName = '$catalogName' AND token = '$bearerToken'"
+    val catalogQuery = s"SELECT DISTINCT product_catalog_id FROM user_group_subscriptions WHERE product_catalog_name = '$catalogName' AND token = '$bearerToken'"
     productCatalogId = DatabaseHelper.executeQuery(catalogQuery).headOption.getOrElse("")
 
     if (productCatalogId.isEmpty) {
