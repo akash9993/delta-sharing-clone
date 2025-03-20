@@ -127,7 +127,7 @@ object DatabaseHelper {
     }
   }
 
-  def updateUserQueryAuditTable(userId: String, productCatalogId: String, productCatalogName: String): Unit = {
+  def updateUserQueryAuditTable(userId: String, productCatalogId: String, productCatalogName: String, groupName: String): Unit = {
     var connection: Connection = null
     var preparedStatement: PreparedStatement = null
     var resultSet: ResultSet = null
@@ -136,7 +136,12 @@ object DatabaseHelper {
       connection = DriverManager.getConnection(url)
 
       // Define SQL Insert Query
-      val query = "SELECT queries_used FROM user_subscriptions WHERE user_id = ? AND product_catalog_id = ?"
+      val query =
+      if (groupName.nonEmpty) {
+        "SELECT queries_used FROM user_group_subscriptions WHERE user_id = ? AND product_catalog_id = ?"
+      } else {
+        "SELECT queries_used FROM user_subscriptions WHERE user_id = ? AND product_catalog_id = ?"
+      }
 
       // Prepare and execute statement
       preparedStatement = connection.prepareStatement(query)
@@ -150,7 +155,13 @@ object DatabaseHelper {
         val updatedQueriesUsed = queriesUsed + 1;
 
         // Prepare UPDATE statement
-        val updateQuery = "UPDATE user_subscriptions SET queries_used = ? WHERE user_id = ? AND product_catalog_id = ?"
+        val updateQuery =
+        if (groupName.nonEmpty) {
+          "UPDATE user_group_subscriptions SET queries_used = ? WHERE user_id = ? AND product_catalog_id = ?"
+        } else {
+          "UPDATE user_subscriptions SET queries_used = ? WHERE user_id = ? AND product_catalog_id = ?"
+        }
+
         preparedStatement = connection.prepareStatement(updateQuery)
         preparedStatement.setInt(1, updatedQueriesUsed) // Incremented value
         preparedStatement.setString(2, userId)
@@ -162,13 +173,15 @@ object DatabaseHelper {
         if (rowsUpdated == 0) {
           throw new Exception("Failed to update queries_used: No rows affected")
         }
-        val query1 = "INSERT INTO user_query_audit (user_id, catalog_id, catalog_name, query_count, time_created) VALUES (?, ?, ?, ?, ?)"
+        val query1 = "INSERT INTO user_query_audit (user_id, catalog_id, catalog_name, query_count, time_created,GroupName) VALUES (?, ?, ?, ?, ?,?)"
+        
         preparedStatement = connection.prepareStatement(query1)
         preparedStatement.setString(1, userId)
         preparedStatement.setString(2, productCatalogId)
         preparedStatement.setString(3, productCatalogName)
         preparedStatement.setInt(4, updatedQueriesUsed)
         preparedStatement.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()))
+        preparedStatement.setInt(6, groupName)
         preparedStatement.executeUpdate();
       }
     } catch {

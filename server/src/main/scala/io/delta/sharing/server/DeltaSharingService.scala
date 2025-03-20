@@ -341,7 +341,9 @@ class DeltaSharingService(serverConfig: ServerConfig) {
       @Param("table") table: String,
       @Param("version") @Nullable version: java.lang.Long,
       @Param("timestamp") @Nullable timestamp: String): HttpResponse = processRequest {
+
     import scala.collection.JavaConverters._
+
     // Extract Bearer Token
     val authHeader = req.headers().get("Authorization")
     val bearerToken = Option(authHeader)
@@ -351,74 +353,125 @@ class DeltaSharingService(serverConfig: ServerConfig) {
 
     // Log Bearer Token
     logger.info(s"Received Bearer Token: $bearerToken")
-    val result: Boolean = DatabaseHelper.checkTokenPresentInDb(bearerToken);
+    val result: Boolean = DatabaseHelper.checkTokenPresentInDb(bearerToken)
     if (!result) {
       logger.error("Unauthorized access attempt with invalid token")
-      throw new UnauthorizedException("User is unauthorized");
+      throw new UnauthorizedException("User is unauthorized")
     }
-    // extract userid, productCatalogId and productCatalogName
+
     // Decode Base64 token
     val decodedToken = Try(new String(Base64.getDecoder.decode(bearerToken), "UTF-8")).getOrElse {
       throw new UnauthorizedException("Invalid Bearer Token format")
     }
 
     val tokenParts = decodedToken.split(":")
-    if (tokenParts.length != 3) {
+    if (tokenParts.length != 2 && tokenParts.length != 3) {
       throw new UnauthorizedException("Malformed Bearer Token")
     }
 
-    // Extract userId, productCatalogId, and productCatalogName
-    val userId = tokenParts(0)                // 1892637b-1176-4fc4-bb6e-3537ff1fc30b
-    val productCatalogId = tokenParts(1)      // 5e4bae27-a795-4cda-8ccf-c2f6f6f60000
-    val productCatalogName = tokenParts(2)    // MODEL_POPULARITY_INDICATOR
+    val userId = tokenParts(0) // Always extract userId
+    var groupName: String = ""
+    var productCatalogId: String = ""
+    var productCatalogName: String = ""
 
-    if (productCatalogName != table) {
-      logger.error(s"Access Denied: productCatalogName ($productCatalogName) does not match table ($table)")
-      throw new UnauthorizedException("Forbidden: Access to this table is not allowed")
+    if (tokenParts.length == 3) {
+      // Extract productCatalogId and productCatalogName if token length is 3
+      productCatalogId = tokenParts(1)
+      productCatalogName = tokenParts(2)
+      logger.info(s"Extracted UserId: $userId, ProductCatalogId: $productCatalogId, ProductCatalogName: $productCatalogName")
+
+      if (productCatalogName != table) {
+        logger.error(s"Access Denied: productCatalogName ($productCatalogName) does not match table ($table)")
+        throw new UnauthorizedException("Forbidden: Access to this table is not allowed")
+      }
+    } else if (tokenParts.length == 2) {
+      // Extract groupName if token length is 2
+      groupName = tokenParts(1)
+      logger.info(s"Extracted UserId: $userId, GroupName: $groupName")
+
+      //  Match token's group name with value from database using actual token
+      val query = s"SELECT DISTINCT GroupName FROM user_group_subscriptions WHERE user_id = '$userId' AND token = '$bearerToken'"
+      val fetchedGroupName = DatabaseHelper.executeQuery(query).headOption.getOrElse("")
+
+      if (fetchedGroupName.isEmpty) {
+        logger.error(s"Access Denied: No group name found for userId ($userId) and token ($bearerToken)")
+        throw new UnauthorizedException("Forbidden: Access to this Group is not allowed")
+      }
+
+      if (fetchedGroupName != groupName) {
+        logger.error(s"Access Denied: Fetched group name ($fetchedGroupName) does not match token's group name ($groupName)")
+        throw new UnauthorizedException("Forbidden: Access to this Group is not allowed")
+      }
     }
 
-    logger.info(s"Extracted UserId: $userId, ProductCatalogId: $productCatalogId, ProductCatalogName: $productCatalogName")
+  //  Take catalogName value from @Param("table") directly
+  val catalogName = table
 
-    DatabaseHelper.validateUserSubscriptionAndQueryLimit(userId, productCatalogId);
-    if (version != null && timestamp != null) {
-      throw new DeltaSharingIllegalArgumentException(ErrorStrings.multipleParametersSetErrorMsg(
-        Seq("version", "timestamp"))
-      )
+  // Determine if groupName is present
+  val isGroup = groupName
+
+  if (isGroup) {
+    // Use actual token in the query
+    val catalogQuery = s"SELECT DISTINCT catalogId FROM user_group_subscriptions WHERE CatalogName = '$catalogName' AND token = '$bearerToken'"
+    productCatalogId = DatabaseHelper.executeQuery(catalogQuery).headOption.getOrElse("")
+
+    if (productCatalogId.isEmpty) {
+      logger.error(s"Access Denied: No catalogId found for catalogName ($catalogName)")
+      throw new UnauthorizedException("Forbidden: Access to this Catalog is not allowed")
     }
-    if (version != null && version < 0) {
-      throw new DeltaSharingIllegalArgumentException("version cannot be negative.")
-    }
-    val capabilitiesMap = getDeltaSharingCapabilitiesMap(
-      req.headers().get(DELTA_SHARING_CAPABILITIES_HEADER)
-    )
-    val tableConfig = sharedTableManager.getTable(share, schema, table)
-    if ((version != null || timestamp != null) && !tableConfig.historyShared) {
-      throw new DeltaSharingIllegalArgumentException("Reading table by version or timestamp is" +
-        " not supported because history sharing is not enabled on table: " +
-        s"$share.$schema.$table")
-    }
-    val responseFormatSet = getResponseFormatSet(capabilitiesMap)
-    val clientReaderFeaturesSet = getReaderFeatures(capabilitiesMap)
-    val queryResult = deltaSharedTableLoader.loadTable(tableConfig, useKernel = true).query(
-      includeFiles = false,
-      predicateHints = Nil,
-      jsonPredicateHints = None,
-      limitHint = None,
-      version = Option(version).map(_.toLong),
-      timestamp = Option(timestamp),
-      startingVersion = None,
-      endingVersion = None,
-      maxFiles = None,
-      pageToken = None,
-      includeRefreshToken = false,
-      refreshToken = None,
-      responseFormatSet = responseFormatSet,
-      clientReaderFeaturesSet = clientReaderFeaturesSet,
-      includeEndStreamAction = false)
-    DatabaseHelper.updateUserQueryAuditTable(userId,productCatalogId, productCatalogName);
-    streamingOutput(Some(queryResult.version), queryResult.responseFormat, queryResult.actions)
-    // maintain audit table
   }
+
+  //  Validate user subscription and query limit
+  DatabaseHelper.validateUserSubscriptionAndQueryLimit(userId, productCatalogId)
+
+  if (version != null && timestamp != null) {
+    throw new DeltaSharingIllegalArgumentException(ErrorStrings.multipleParametersSetErrorMsg(
+      Seq("version", "timestamp"))
+    )
+  }
+
+  if (version != null && version < 0) {
+    throw new DeltaSharingIllegalArgumentException("version cannot be negative.")
+  }
+
+  val capabilitiesMap = getDeltaSharingCapabilitiesMap(
+    req.headers().get(DELTA_SHARING_CAPABILITIES_HEADER)
+  )
+
+  val tableConfig = sharedTableManager.getTable(share, schema, table)
+  if ((version != null || timestamp != null) && !tableConfig.historyShared) {
+    throw new DeltaSharingIllegalArgumentException("Reading table by version or timestamp is" +
+      " not supported because history sharing is not enabled on table: " +
+      s"$share.$schema.$table")
+  }
+
+  val responseFormatSet = getResponseFormatSet(capabilitiesMap)
+  val clientReaderFeaturesSet = getReaderFeatures(capabilitiesMap)
+
+  val queryResult = deltaSharedTableLoader.loadTable(tableConfig, useKernel = true).query(
+    includeFiles = false,
+    predicateHints = Nil,
+    jsonPredicateHints = None,
+    limitHint = None,
+    version = Option(version).map(_.toLong),
+    timestamp = Option(timestamp),
+    startingVersion = None,
+    endingVersion = None,
+    maxFiles = None,
+    pageToken = None,
+    includeRefreshToken = false,
+    refreshToken = None,
+    responseFormatSet = responseFormatSet,
+    clientReaderFeaturesSet = clientReaderFeaturesSet,
+    includeEndStreamAction = false
+  )
+
+  //  Maintain audit table with GroupName
+  DatabaseHelper.updateUserQueryAuditTable(userId, productCatalogId, productCatalogName, groupName)
+
+  streamingOutput(Some(queryResult.version), queryResult.responseFormat, queryResult.actions)
+}
+
 
 
   @Post("/shares/{share}/schemas/{schema}/tables/{table}/queries/{queryId}")
