@@ -390,7 +390,7 @@ class DeltaSharingService(serverConfig: ServerConfig) {
       logger.info(s"Extracted UserId: $userId, GroupName: $groupName")
 
       //  Match token's group name with value from database using actual token
-      val query = s"SELECT DISTINCT GroupName FROM user_group_subscriptions WHERE user_id = '$userId' AND token = '$bearerToken'"
+      val query = s"SELECT DISTINCT group_name FROM user_group_subscriptions WHERE user_id = '$userId' AND token = '$bearerToken'"
       val fetchedGroupName = DatabaseHelper.executeQuery(query).headOption.getOrElse("")
 
       if (fetchedGroupName.isEmpty) {

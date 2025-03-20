@@ -176,7 +176,7 @@ object DatabaseHelper {
         if (rowsUpdated == 0) {
           throw new Exception("Failed to update queries_used: No rows affected")
         }
-        val query1 = "INSERT INTO user_query_audit (user_id, catalog_id, catalog_name, query_count, time_created,GroupName) VALUES (?, ?, ?, ?, ?,?)"
+        val query1 = "INSERT INTO user_query_audit (user_id, catalog_id, catalog_name, query_count, time_created,group_name) VALUES (?, ?, ?, ?, ?,?)"
         
         preparedStatement = connection.prepareStatement(query1)
         preparedStatement.setString(1, userId)
