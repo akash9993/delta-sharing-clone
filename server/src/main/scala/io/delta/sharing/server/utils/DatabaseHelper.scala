@@ -77,12 +77,14 @@ object DatabaseHelper {
       connection = DriverManager.getConnection(url)
 
       // Define SQL Query
-      val query = "SELECT expiration_date, subscription_pricing_detail, queries_used FROM user_subscriptions WHERE user_id = ? AND product_catalog_id = ?"
+      val query = "SELECT expiration_date, subscription_pricing_detail, queries_used FROM user_subscriptions WHERE user_id = ? AND product_catalog_id = ? UNION SELECT expiration_date, subscription_pricing_detail, queries_used FROM user_group_subscriptions WHERE user_id = ? AND product_catalog_id = ?"
 
       // Prepare and execute statement
       preparedStatement = connection.prepareStatement(query)
       preparedStatement.setString(1, userId)
       preparedStatement.setString(2, productCatalogId)
+      preparedStatement.setString(3, userId)
+      preparedStatement.setString(4, productCatalogId)
       resultSet = preparedStatement.executeQuery()
 
       if (resultSet.next()) {
