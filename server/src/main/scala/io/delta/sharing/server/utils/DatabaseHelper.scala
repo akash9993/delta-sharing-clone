@@ -198,39 +198,40 @@ object DatabaseHelper {
       if (connection != null) connection.close()
     }
   }
-}
 
-def executeQuery(query: String): Seq[String] = {
-  var connection: Connection = null
-  var preparedStatement: PreparedStatement = null
-  var resultSet: ResultSet = null
-  var result = Seq[String]()
+  def executeQuery(query: String): Seq[String] = {
+    var connection: Connection = null
+    var preparedStatement: PreparedStatement = null
+    var resultSet: ResultSet = null
+    var result = Seq[String]()
 
-  try {
-    // Establish connection
-    connection = DriverManager.getConnection(url)
+    try {
+      // Establish connection
+      connection = DriverManager.getConnection(url)
 
-    // Prepare and execute statement
-    preparedStatement = connection.prepareStatement(query)
-    resultSet = preparedStatement.executeQuery()
+      // Prepare and execute statement
+      preparedStatement = connection.prepareStatement(query)
+      resultSet = preparedStatement.executeQuery()
 
-    while (resultSet.next()) {
-      // Assuming the result has one column; modify accordingly if needed
-      result = result :+ resultSet.getString(1)
+      while (resultSet.next()) {
+        // Assuming the result has one column; modify accordingly if needed
+        result = result :+ resultSet.getString(1)
+      }
+    } catch {
+      case e: SQLException =>
+        logger.error(s"Database error while executing query: $query", e)
+        throw new Exception(s"Database error: ${e.getMessage}")
+      case e: Exception =>
+        logger.error(s"Error while executing query: $query", e)
+        throw new Exception(s"Unexpected error: ${e.getMessage}")
+    } finally {
+      // Close resources in reverse order
+      if (resultSet != null) resultSet.close()
+      if (preparedStatement != null) preparedStatement.close()
+      if (connection != null) connection.close()
     }
-  } catch {
-    case e: SQLException =>
-      logger.error(s"Database error while executing query: $query", e)
-      throw new Exception(s"Database error: ${e.getMessage}")
-    case e: Exception =>
-      logger.error(s"Error while executing query: $query", e)
-      throw new Exception(s"Unexpected error: ${e.getMessage}")
-  } finally {
-    // Close resources in reverse order
-    if (resultSet != null) resultSet.close()
-    if (preparedStatement != null) preparedStatement.close()
-    if (connection != null) connection.close()
-  }
 
-  result
+    result
+  }
 }
+
