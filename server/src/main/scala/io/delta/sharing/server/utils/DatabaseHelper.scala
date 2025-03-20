@@ -181,7 +181,7 @@ object DatabaseHelper {
         preparedStatement.setString(3, productCatalogName)
         preparedStatement.setInt(4, updatedQueriesUsed)
         preparedStatement.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()))
-        preparedStatement.setInt(6, groupName)
+        preparedStatement.setString(6, groupName)
         preparedStatement.executeUpdate();
       }
     } catch {
