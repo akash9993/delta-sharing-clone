@@ -94,7 +94,7 @@ object DatabaseHelper {
 
         val objectMapper = new ObjectMapper();
         val jsonNode: JsonNode = objectMapper.readTree(subscriptionPricingDetail)
-        val subscriptionType = jsonNode.get("queryLimit").asText();
+        val subscriptionType = jsonNode.get("type").asText();
         // Parse expiration_date as LocalDateTime
         if("subscription".equalsIgnoreCase(subscriptionType)){
           val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS") // Adjust if necessary
@@ -155,7 +155,7 @@ object DatabaseHelper {
 
         val objectMapper = new ObjectMapper();
         val jsonNode: JsonNode = objectMapper.readTree(subscriptionPricingDetail)
-        val subscriptionType = jsonNode.get("queryLimit").asText();
+        val subscriptionType = jsonNode.get("type").asText();
         // Parse expiration_date as LocalDateTime
         if("subscription".equalsIgnoreCase(subscriptionType)){
           val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS") // Adjust if necessary
