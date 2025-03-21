@@ -404,24 +404,30 @@ class DeltaSharingService(serverConfig: ServerConfig) {
       }
     }
 
-  //  Take catalogName value from @Param("table") directly
-  val catalogName = table
+  //  Take ProductCatalogName value from @Param("table") directly
+  ProductCatalogName = table
 
   // Determine if groupName is present
 
   if (groupName.nonEmpty) {
     // Use actual token in the query
-    val catalogQuery = s"SELECT DISTINCT product_catalog_id FROM user_group_subscriptions WHERE product_catalog_name = '$catalogName' AND token = '$bearerToken'"
+    val catalogQuery = s"SELECT DISTINCT product_catalog_id FROM user_group_subscriptions WHERE product_catalog_name = '$ProductCatalogName' AND token = '$bearerToken'"
     productCatalogId = DatabaseHelper.executeQuery(catalogQuery).headOption.getOrElse("")
 
     if (productCatalogId.isEmpty) {
-      logger.error(s"Access Denied: No catalogId found for catalogName ($catalogName)")
+      logger.error(s"Access Denied: No catalogId found for ProductCatalogName ($ProductCatalogName)")
       throw new UnauthorizedException("Forbidden: Access to this Catalog is not allowed")
     }
   }
 
   //  Validate user subscription and query limit
-  DatabaseHelper.validateUserSubscriptionAndQueryLimit(userId, productCatalogId)
+
+  if (groupName.nonEmpty) {
+    DatabaseHelper.validateUserSubscriptionAndQueryLimitGroup(userId, groupName)
+  } else{
+      DatabaseHelper.validateUserSubscriptionAndQueryLimit(userId, productCatalogId)
+  }
+
 
   if (version != null && timestamp != null) {
     throw new DeltaSharingIllegalArgumentException(ErrorStrings.multipleParametersSetErrorMsg(

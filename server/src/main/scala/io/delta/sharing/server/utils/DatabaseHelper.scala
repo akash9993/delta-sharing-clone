@@ -77,14 +77,12 @@ object DatabaseHelper {
       connection = DriverManager.getConnection(url)
 
       // Define SQL Query
-      val query = "SELECT expiration_date, subscription_pricing_detail, queries_used FROM user_subscriptions WHERE user_id = ? AND product_catalog_id = ? UNION SELECT expiration_date, subscription_pricing_detail, queries_used FROM user_group_subscriptions WHERE user_id = ? AND product_catalog_id = ?"
+      val query = "SELECT expiration_date, subscription_pricing_detail, queries_used FROM user_subscriptions WHERE user_id = ? AND product_catalog_id = ?"
 
       // Prepare and execute statement
       preparedStatement = connection.prepareStatement(query)
       preparedStatement.setString(1, userId)
       preparedStatement.setString(2, productCatalogId)
-      preparedStatement.setString(3, userId)
-      preparedStatement.setString(4, productCatalogId)
       resultSet = preparedStatement.executeQuery()
 
       if (resultSet.next()) {
@@ -114,6 +112,67 @@ object DatabaseHelper {
 
           // Check if query limit is reached
           if (queriesUsed >= queryLimit) {
+            throw new SubscriptionExpiredException("Your query limit has been reached to "+queryLimit)
+          }
+        }
+
+
+        true // Valid subscription and within query limit
+      } else {
+        throw new Exception("Data not found")
+      }
+    }
+    finally {
+      // Close resources in reverse order
+      if (resultSet != null) resultSet.close()
+      if (preparedStatement != null) preparedStatement.close()
+      if (connection != null) connection.close()
+    }
+  }
+
+  def validateUserSubscriptionAndQueryLimitGroup(userId: String, groupName: String): Boolean = {
+    var connection: Connection = null
+    var preparedStatement: PreparedStatement = null
+    var resultSet: ResultSet = null
+    try {
+      // Establish connection
+      connection = DriverManager.getConnection(url)
+
+      // Define SQL Query
+      val query = "select group_name,subscription_pricing_detail,expiration_date,  SUM(queries_used) as totalCount from user_group_subscriptions where group_name = ? group by group_name,subscription_pricing_detail,expiration_date;"
+
+      // Prepare and execute statement
+      preparedStatement = connection.prepareStatement(query)
+      preparedStatement.setString(1, groupName)
+      resultSet = preparedStatement.executeQuery()
+
+      if (resultSet.next()) {
+        // Extract values from result set
+        val expirationDateTimeStr = resultSet.getString("expiration_date")
+        val subscriptionPricingDetail = resultSet.getString("subscription_pricing_detail")
+        val totalCount = resultSet.getInt("totalCount")
+        logger.info("detail: {}", subscriptionPricingDetail);
+
+        val objectMapper = new ObjectMapper();
+        val jsonNode: JsonNode = objectMapper.readTree(subscriptionPricingDetail)
+        val subscriptionType = jsonNode.get("queryLimit").asText();
+        // Parse expiration_date as LocalDateTime
+        if("subscription".equalsIgnoreCase(subscriptionType)){
+          val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS") // Adjust if necessary
+          val expirationDateTime = LocalDateTime.parse(expirationDateTimeStr, formatter)
+          logger.info("expirationDateTime: {}", expirationDateTime);
+          val currentDateTime = LocalDateTime.now()
+
+          // Check if subscription has expired
+          if (expirationDateTime.isBefore(currentDateTime)) {
+            throw new SubscriptionExpiredException("Your subscription plan has expired at: "+expirationDateTime)
+          }
+
+          // Parse JSON to extract queryLimit
+          val queryLimit = jsonNode.get("queryLimit").asInt()
+
+          // Check if query limit is reached
+          if (totalCount >= queryLimit) {
             throw new SubscriptionExpiredException("Your query limit has been reached to "+queryLimit)
           }
         }
