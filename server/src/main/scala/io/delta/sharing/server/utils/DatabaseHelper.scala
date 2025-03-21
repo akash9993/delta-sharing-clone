@@ -170,6 +170,7 @@ object DatabaseHelper {
 
           // Parse JSON to extract queryLimit
           val queryLimit = jsonNode.get("queryLimit").asInt()
+          logger.info("**********************totalCount: ", totalCount);
 
           // Check if query limit is reached
           if (totalCount >= queryLimit) {
